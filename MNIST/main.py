@@ -16,6 +16,8 @@ from util import *
 
 def save_state(model, acc):
     print('==> Saving model ...')
+    if not os.path.exists('saved_models'):
+        os.mkdir('saved_models')
     state = {
             'acc': acc,
             'state_dict': model.state_dict(),
@@ -46,7 +48,7 @@ def train(epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                100. * batch_idx / len(train_loader), loss.item()))
     return
 
 def test(evaluate=False):
@@ -58,11 +60,12 @@ def test(evaluate=False):
     for data, target in test_loader:
         if args.cuda:
             data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += criterion(output, target).data[0]
-        pred = output.data.max(1, keepdim=True)[1]
-        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+        data, target = Variable(data), Variable(target)
+        with torch.no_grad():
+            output = model(data)
+            test_loss += criterion(output, target).item()
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
     
     acc = 100. * float(correct) / len(test_loader.dataset)
     if ((args.prune == 'node') and (not args.retrain)) or (acc > best_acc):
